@@ -1,33 +1,75 @@
+const { response, json } = require('express');
 const express = require('express');
-
 const app = express();
-app.use(express.json())
+const {v4: uuidv4} = require('uuid')
 
-app.get("/courses", (req, res) => {
-    const query = req.query;
-    console.log(query);
-    return res.json(["Java", "JavaScript", "Angular"])
+app.use(express.json())
+const customers = [];
+
+function verifyIfExistAccountCPF(req,res,next){
+
+    const {cpf} = req.headers;
+
+    const customer = customers.find((customer)=>customer.cpf === cpf);
+
+    if(!customer){
+        return res.status(400).json({error: "Customer not found"});
+    }
+
+    req.customer = customer;
+
+    return next();
+
+}
+
+
+app.post("/account",(req,res)=>{
+    const {cpf, name} = req.body;
+    
+
+    const customerAlreadyExist = customers.some((customer)=> customer.cpf === cpf);
+
+    if(customerAlreadyExist){
+        return res.status(400).json({erro: "Customer already exists!"})
+    }
+
+    customers.push({
+        cpf,
+        name,
+        id: id = uuidv4(),
+        transaction: []
+    });
+
+    return res.status(201).send()
+
 });
 
-app.post("/courses", (req, res) => {
-    const body = req.body;
-    console.log(body);
-    return res.json(["Java", "JavaScript", "Angular", "React"])
+app.get("/trasaction", verifyIfExistAccountCPF, (req,res)=>{
+
+    const { customer } = req;
+
+
+    return res.json(customer.transaction);
 })
 
-app.put("/courses/:id", (req, res) => {
-    const {id} = req.params;
-    console.log({id});
-    return res.json(["NodeJS", "JavaScript", "Angular", "React"])
-})
+app.post("/deposit", verifyIfExistAccountCPF, (req,res)=>{
 
-app.patch("/courses/:id", (req, res) => {
-    return res.json(["NodeJS", "JavaScript", "Angular", "ReactNative"])
-})
+    const {description, amount} = req.body;
 
-app.delete("/courses/:id", (req, res) => {
-    return res.json(["Angular"])
-})
+    const {customer} = req;
+
+    const transactionOperation = {
+        description,
+        amount,
+        createAt: new Date(),
+        type: "credit"
+    };
+
+    customer.transaction.push(transactionOperation);
+
+    return res.status(201).send();
+
+});
 
 
 app.listen(3333);
